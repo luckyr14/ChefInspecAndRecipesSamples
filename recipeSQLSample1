@@ -1,0 +1,54 @@
+## Discussion ##
+	#
+	# SQL Server Authentication does not provide for many of the authentication
+	# requirements of the DoD. In some cases workarounds are present, but the
+	# authentication is not as robust and does not provide needed functionality.
+	# Without that functionality, SQL Server is vulnerable to authentication
+	# attacks. Consideration must be given to the placement of SQL server inside a
+	# forest to ensure evaluation of risk within the environment is considered. Risk
+	# includes introduction of risk to SQL Server from other applications or
+	# workstations as well as risk from introduction of SQL server itself into an
+	# established environment.
+	#
+	#
+	# There may be situations where SQL Server Authentication must remain enabled,
+	# because of constraints imposed by a third-party application. In such a case,
+	# document the constraint in the system security plan, and obtain signed
+	# approval.
+	#
+	#
+	## Check ##
+	#
+	# To determine the Server Authentication Mode, execute the following:
+	#
+	# EXEC XP_LOGINCONFIG 'login mode'
+	#
+	# If the config_value does not equal "Windows NT Authentication", this is a
+	# finding.
+	#
+	#
+	## Fix ##
+	#
+	# From SQL Server Management Studio, right-click the server, and then click
+	# Properties.
+	#
+	#
+	# Select the Security page. Under Server authentication, select Windows
+	# Authentication Mode, and then click OK.
+	#
+	#
+	######
+	
+	Chef::Log.info 'Remediate: SQL2-00-023600: SRG-APP-999999-DB-000209'
+	
+	# FIXME: implement SQL2-00-023600 below
+	powershell_script 'SQL2-00-023600: Enable only Windows NT Authentication' do
+	code <<-EOH
+	sqlcmd -Q "use MASTER; EXEC xp_instance_regwrite N'HKEY_LOCAL_MACHINE', N'Software\\Microsoft\\MSSQLServer\\MSSQLServer', N'LoginMode', REG_DWORD, 1"
+	EOH
+	
+	not_if do
+	pso = powershell_out!("sqlcmd -h-1 -Q \"EXEC XP_LOGINCONFIG 'login mode'\"").stdout
+	pso.include? 'Windows NT Authentication'
+	end
+	end 

@@ -1,0 +1,42 @@
+Check Text ( C-47954r2_chk )
+Review procedures for, and evidence of backup of, the SQL Server Service Master Key in the System Security Plan.
+
+If the procedures or evidence does not exist, this is a finding.
+
+If the procedures do not indicate offline and off-site storage of the Service Master Key, this is a finding.
+
+If procedures do not indicate access restrictions to the Service Master Key backup, this is a finding.
+
+
+Fix Text (F-46847r2_fix)
+Document and implement procedures to safely back up and store the Service Master Key. Include in the procedures methods to establish evidence of backup and storage, and careful, restricted access and restoration of the Service Master Key. Also, include provisions to store the key off-site.
+BACKUP SERVICE MASTER KEY TO FILE = 'path_to_file'
+ENCRYPTION BY PASSWORD = 'password'
+
+
+
+========
+USE [EncryptedDB]
+ GO
+ CREATE MASTER KEY ENCRYPTION BY PASSWORD = '$tr0nGPa$$w0rd'
+ GO
+
+USE [EncryptedDB]
+GO
+
+-- Create the asymmetric key encrypted by
+-- the passphrase StrongPa$$w0rd!
+CREATE ASYMMETRIC KEY MyAsymmetricKey
+  WITH ALGORITHM = RSA_2048
+  ENCRYPTION BY PASSWORD = 'StrongPa$$w0rd!'
+GO
+
+SELECT *
+FROM sys.symmetric_keys
+WHERE name = '##MS_ServiceMasterKey##';
+
+
+CREATE MASTER KEY ENCRYPTION BY PASSWORD = 'Password123';
+
+SELECT name, key_length, algorithm_desc, create_date, modify_date
+FROM sys.symmetric_keys;

@@ -1,0 +1,94 @@
+## Check ##
+#
+# Follow the procedures below for each site under review:
+# 1. Open the IIS Manager.
+# 2. Click the site name.
+# 3. Click the Logging icon.
+# 4. Beside Directory, Click Browse.
+# 5. Right-click the log file name to review and click Properties.
+# 6. Click the Security tab; ensure only authorized groups are listed, if others
+# are listed, this is a finding.
+#
+#
+## Fix ##
+#
+# 1. Open the IIS Manager.
+# 2. Click the site name.
+# 3. Click the Logging icon.
+# 4. Beside Directory, Click Browse.
+# 5. Right-click the log file name to review and click Properties.
+# 6. Click the Security tab.
+# 7. Set the log file permissions for the appropriate group.
+#
+######
+Chef::Log.info 'Remediate: WG255 IIS7: WG255'
+powershell_script 'Access to the web-site log files must be restricted' do
+code <<-EOF
+$logDir = Get-WebConfigurationProperty "/system.applicationHost/sites/site[@name='Default Web Site']/logfile" -Name directory | Select -ExpandProperty Value
+$logging = [System.Environment]::ExpandEnvironmentVariables($logDir)
+$logs = get-childitem $logging -recurse -File
+Foreach ($List in $logs.FullName)
+{
+$logs_path = $List
+$logs_acl = (Get-Acl $logs_path)
+$default_groups = @()
+$default_groups += (@{
+IdentityReference="BUILTIN\\Administrators";
+FileSystemRights="Fullcontrol";
+AccessControlType="Allow";
+InheritanceFlags="None";
+PropagationFlags="None";
+})
+$default_groups += (@{
+IdentityReference="NT AUTHORITY\\SYSTEM";
+FileSystemRights="Fullcontrol";
+AccessControlType="Allow";
+InheritanceFlags="None";
+PropagationFlags="None";
+})
+$existing_groups_acl = $logs_acl.Access | ForEach-Object { $_ }
+foreach($existing_group_acl in $existing_groups_acl)
+{
+$principal = $existing_group_acl.IdentityReference.ToString()
+$existing_rights = $existing_group_acl.FileSystemRights.ToString()
+Write-Host "Group = " $principal
+Write-Host "Rights = " $existing_rights
+$default_group = $default_groups | Where-Object { $_.IdentityReference -eq $principal }
+if ($default_group -ne $null)
+{
+# Principal exists in default_groups, check access
+Write-Host "Principal: " $principal ", found in default_groups, permissions:" $default_group.FileSystemRights
+if (($existing_group_acl.FileSystemRights.ToString() -ne $default_group.FileSystemRights) -or
+($existing_group_acl.AccessControlType.ToString() -ne $default_group.AccessControlType) -or
+($existing_group_acl.InheritanceFlags.ToString() -ne $default_group.InheritanceFlags) -or
+($existing_group_acl.PropagationFlags.ToString() -ne $default_group.PropagationFlags))
+{
+# Default permissions didnt match, update the permissions
+$accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($principal, $default_group.FileSystemRights, $default_group.InheritanceFlags, $default_group.PropagationFlags, $default_group.AccessControlType)
+$logs_acl.SetAccessRule($accessRule)
+$logs_acl | Set-Acl $logs_path
+Write-Host "Permissions updated for = " $principal
+}
+}else{
+# Group doesnt exist in default_groups, so remove it
+Write-Host "Group: " $principal ", doesnt exist in default_groups, so remove it"
+$userObj = New-Object System.Security.Principal.NTAccount($env:UserDomain,$env:UserName)
+$logs_acl.RemoveAccessRule($existing_group_acl)
+$logs_acl.SetOwner($userObj)
+$logs_acl | Set-Acl $logs_path
+Write-Host "Permissions deleted for = " $principal
+}
+}
+$username = "#{node['STIG-Oracle-HTTP-Server']['user_perm']}"
+if ((net user $username) -or (net localgroup $username))
+{
+if ($username -ne $null)
+{
+$accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($username, "Read", "None", "None", "Allow")
+$logs_acl.SetAccessRule($accessRule)
+$logs_acl | Set-Acl $logs_path
+}
+}
+}
+EOF
+end

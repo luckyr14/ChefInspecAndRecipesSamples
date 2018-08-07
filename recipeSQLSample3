@@ -1,0 +1,80 @@
+# SQL Server must have allocated audit record storage capacity to meet the organization-defined requirements for saving audit record information.
+	#
+	# STIG ID:  SQL2-00-010600
+	# Rule ID:  SV-53401r2_rule
+	# Vuln ID:  V-41026
+	# Severity: CAT II
+	# Related:
+	# - CCI-001849
+	#
+	## Discussion ##
+	#
+	# SQL Server does not have the ability to be cognizant of potential audit log
+	# storage capacity issues. During the installation and/or configuration process,
+	# SQL Server should detect and determine if adequate storage capacity has been
+	# allocated for audit logs.
+	#
+	#
+	# During the installation process, a notification may be provided to the
+	# installer indicating, based on the auditing configuration chosen and the
+	# amount of storage space allocated for audit logs, the amount of storage
+	# capacity available is not sufficient to meet storage requirements. SQL Server
+	# is not able to send out notice based on adequate storage capacity allocated
+	# for the audit logs.
+	#
+	#
+	## Check ##
+	#
+	# From a Command Prompt, open fsrm.msc.
+	# If fsrm.msc is not installed, the File Server Resource Manager is not
+	# installed; File and Folder Quota Management is not enabled. If File Server
+	# Resource Manager or a third-party tool capable of sending alert notifications
+	# based on audit log store requirements is not installed, this is a finding.
+	#
+	#
+	# If fsrm.msc is installed, expand File Server Resource Manager in the left
+	# pane.
+	#
+	# Expand Quota Management.
+	# Expand Quotas.
+	# If Quotas have not been created for defined Audit Log storage locations, this
+	# is a finding.
+	#
+	#
+	## Fix ##
+	#
+	# Use File Server Resource Manager (FSRM.msc) to enable File and Folder Quota
+	# Management and create quotas for identified Audit storage locations.
+	#
+	#
+	######
+	
+	Chef::Log.info 'Remediate:    SQL2-00-010600: SRG-APP-000072-DB-000046'
+	
+	
+	powershell_script 'FSRM-WindowsFeature' do
+	  code <<-EOH
+	    Import-Module Servermanager
+	    Add-WindowsFeature FS-FileServer,FS-Resource-Manager
+	  EOH
+	  not_if <<-EOH
+	    Import-module servermanager ; (Get-WindowsFeature -name RSAT-FSRM-Mgmt).Installed
+	  EOH
+	end
+	
+	powershell_script 'FSRM-Quota' do
+	  code <<-EOH
+	    dirquota quota add /path:#{node['SQL_Server_2012_Instance_STIG']['fsrm_quota_dir']} /limit:#{node[cookbook_name]['fsrm_quota_limit']}'mb
+	  EOH
+	  not_if <<-EOH
+	    $a = $(dirquota quota list /path:#{node[cookbook_name]['fsrm_quota_dir']}) | Select-String 'Limit'
+	    $a -match subl#{node[cookbook_name]['fsrm_quota_limit']}
+	  EOH
+	end
+
+
+=================attribute========
+
+default['SQL_Server_2008_R2_Instance_STIG']['fsrm_quota_dir'] = ''
+# FSRM quota limit in MB
+default['SQL_Server_2008_R2_Instance_STIG']['fsrm_quota_limit'] = ''

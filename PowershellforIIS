@@ -1,0 +1,207 @@
+Clear-Host
+Import-Module WebAdministration
+Write-Host "hello lakshman"
+Get-WebConfigFile -OutVariable "Name"
+IISUser = Get-WebConfiguration -Filter system.webServer/security/authorization | Foreach{$_.GetCollection() | Foreach {$_.Attributes | select name, value } } 
+echo $IISUser$
+#$user = $IISUser |select-string -Pattern "luckyy"
+#$admin = $IISUser |select-string -Pattern "Administrator"
+#$count2 = $count.Matches.Count
+#echo $IISUser
+
+#echo $count
+#echo $Matches | select Line
+#Get-WebConfiguration -filter /system.webServer/security/authorization -Location -pspath 'MACHINE/WEBROOT/APPHOST'| Foreach{$_.GetCollection() | Foreach {$_.Attributes | select users} }
+ 
+# indices
+#echo $count2
+#echo $admin
+#if($admin -cmatch "Administrator")
+#{
+#if($user -cmatch "lucky")
+#{Write-Host "this should not be there"}
+#else
+#{Write-Host "Everything is fine"}
+#}
+
+
+================================
+
+#Get-WmiObject Win32_UserAccount -Filter "Name = 'Administrator'"
+#Get-WindowsFeature | Where Name -EQ NET-Framework-Core | Select InstallState
+#Import-Module WebAdministration
+#Add-WebConfiguration -Filter "/system.webServer/security/authorization" -Value @{accessType="Allow"; users="lucky"; Permissions="READ,WRITE"}
+Clear-Host
+#$data = cmd /c "net share"
+#echo $data
+#shareSec = gwmi Win32_LogicalShareSecuritySetting -filter "name='$($share.name)'"
+#$sd = $shareSec.invokeMethod('GetSecurityDescriptor',$null,$null)
+#$ShareInfo += $sd.Descriptor.DACL
+#echo $ShareInfo
+#$data1 = "FOR /F "usebackq skip=4 tokens=1" %s IN (`NET SHARE`) DO (NET SHARE %s)"
+#$data2 = cmd /c $data1
+#$ShareData = @{};
+
+#echo $shares
+#$share2 = gwmi Win32_Share -filter "Type > 1" | Sort-Object Name
+#$a = $shares.Count
+#echo $a
+
+#$status = $shares.Contains($Victim(1))
+#echo $status
+$shares = gwmi Win32_Share |Where {$_.name -Like "*$"} 
+$shrname = gwmi Win32_Share |Where {$_.name -Like "*$"}  | Select Name
+$shrcnt = $shares.Count
+if($shrcnt -lt 5)
+{
+$sh1 = $shrname | Out-String
+$Victim = @("C$","IPC$","print$","ADMIN$")
+foreach($element in $Victim) { $sh1.Contains($element) }
+Write-Host "True"
+}
+else
+{Write-Host "false"}
+
+=================================
+
+$IISUser = Get-WebConfiguration -Filter system.webServer/security/authorization | Foreach{$_.GetCollection() | Foreach {$_.Attributes | select name, value } } 
+$user = $IISUser |select-string -Pattern "lucky"
+$admin = $IISUser |select-string -Pattern "Administrator"
+
+echo $user
+echo $admin
+
+if($admin -cmatch "Administrator")
+{
+        if($user -cmatch "nil")
+        {Write-Host "this should not be there"}
+        else
+        {Write-Host "Everything is fine"}
+}       
+else 
+        {Write-Host "Administrator Not Found"}
+
+=============================
+
+
+$IISUser = Get-WebConfiguration -Filter system.webServer/security/authorization | Foreach{$_.GetCollection() | Foreach {$_.Attributes | select name, value } } 
+        $count = $IISUser |select-string -Pattern "users"
+        $admin = $IISUser |select-string -Pattern "Administrator" 
+        $count2 = $count.Matches.Count
+        if($admin -cmatch "Administrato")
+        {
+                if($count2 -gt 2)
+                {Write-Host "false"}
+                else
+                {Write-Host "true"}
+        }
+        else 
+                {Write-Host "Administrator Not Found"}
+
+
+==========================
+
+
+
+Clear-Host
+$shrnames = gwmi Win32_Share |Where {$_.name -Like "*"}  | Select Name
+$cnt = $shrnames.Count
+$testArray = [System.Collections.ArrayList]@()
+$testArray = $shrnames -split '\r?\n'
+$Victim = @("@{Name=C$}","@{Name=IPC$}","@{Name=print$}","@{Name=ADMIN$}")
+foreach($i in $testArray)
+{
+    if($Victim.Contains($i))
+    {
+        continue
+    }
+    else
+    {
+        $aa = $i -replace ".*=" -replace "}.*"
+        $ab = "$aa"
+        $value = (Get-WmiObject -Class Win32_Share -Filter "Name='xyz'").InvokeMethod("Delete",$null)
+        echo $value
+    }
+}
+=============================
+
+$Fruits = "Apple","Pear","Banana","Orange"
+#$Fruits.GetType()
+[System.Collections.ArrayList]$ArrayList = $Fruits
+$ArrayList.GetType()
+$ArrayList.Add("Kiwi")
+$ArrayList.Remove("Apple")
+$ArrayList
+$New = $Fruits += "Kiwi"
+$New
+$New.GetType()
+$New3 = $Fruits -ne "Apple"
+$New3
+$Collection = {$Fruits}.Invoke()
+$Collection
+$Collection.GetType()
+$Collection.Add("Melon")
+$Collection
+$Collection.Remove("Apple")
+$Collection
+
+===============Retrieve array values=====
+
+
+
+$testArray = [System.Collections.ArrayList]@()
+$tempArray = "123", "321", "453"
+
+foreach($item in $tempArray)
+{
+    $arrayID = $testArray.Add($item)
+}
+
+===================Replace some specific String =====
+
+$teststring = "test=keep this, but not this."
+
+$teststring -replace ".*=" -replace ",.*"
+======================
+
+
+$emailList = "example@mail.com
+              example2@mail.com
+              example3@mail.com"
+
+($emailList -split '\r?\n').Trim()
+or
+(($emailList -split '\r?\n').Trim() | ForEach-Object { '"'+$_+'"' }) -Join ','
+
+O/P :- $emailList = @("example@mail.com","example2@mail.com","example3@mail.com")
+
+============Removing Special Characters from Strings====================
+
+
+
+Function Convert-ToFriendlyName
+{param ($Text)
+# Unwanted characters (includes spaces and '-') converted to a regex:
+$SpecChars = '!', '"', '£', '$', '%', '&', '^', '*', '(', ')', '@', '=', '+', '¬', '`', '\', '<', '>', '.', '?', '/', ':', ';', '#', '~', "'", '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', ' '
+$remspecchars = [string]::join('|', ($SpecChars | % {[regex]::escape($_)}))
+# Convert the text given to correct naming format (Uppercase)
+$name = (Get-Culture).textinfo.totitlecase(“$Text”.tolower())
+# Remove unwanted characters
+$name = $name -replace $remspecchars, ""
+$name
+}
+$firstname = Convert-ToFriendlyName "joe !3432"$firstname
+$lastname = Convert-ToFriendlyName "bloggs-doe!3432"$lastname
+
+
+===============Powershell Usefull Syntaxs =============
+
+Get-WebConfiguration -Filter system.webServer/security/authorization | Foreach{$_.GetCollection() | Foreach {$_.Attributes | select name, value } 
+$IISUser |select-string -Pattern "users"
+$IISUser | where {$_.Name -eq "users"} | select -ExpandProperty Value
+Get-WebConfigurationProperty -filter /system.webServer/directoryBrowse -name enabled -PSPath "IIS:\Sites\\$i" | select -ExpandProperty Value | Out-String).Trim()
+$comd = (Get-WmiObject -Class Win32_Service | Where-Object {$_.Name -eq 'W3SVC'} | Format-Wide StartName | Out-String).Trim()
+ gwmi Win32_Share |Where {$_.name -Like "*$"}  | Select Name
+(Get-ChildItem -Path HKLM:\SYSTEM\CurrentControlSet\Control\ContentIndex\Catalogs\$sitename).GetValueNames()
+its('Order') { should match 'deny(\s*),(\s*)allow'}
+

@@ -1,0 +1,91 @@
+Details(OH12-1X-000197)
+Check Text ( C-65375r1_chk )
+1. Open $DOMAIN_HOME/config/fmwconfig/components/OHS//httpd.conf and every .conf file (e.g., ssl.conf) included in it with an editor.
+
+2. Search for the "" directives at the server and virtual host configuration scopes.
+
+3. Go to the location specified as the value for each "" directive (e.g., cd $DOMAIN_HOME/config/fmwconfig/components/OHS/instances/ohs1/htdocs).
+
+4. Check for the existence of any .htaccess files in the aforementioned locations (e.g., find . -name .htaccess -print).
+
+5. If any .htaccess files are found, this is a finding.
+
+
+Info:- Firstly you need to search "" directive in every .conf file and whereever u will find this directive u need search .htaccess file in directory where u find directive.
+
+
+
+domian_home = attribute("domains_home", description: "value of domains_home")
+domain_components = attribute("domain_components", description: "value of domain_components")
+
+stig_control "OH12-1X-000197" do
+domain_components.each do |domain_name, components|
+domain_ohs_path = "#{domian_home}\\#{domain_name}\\config\\fmwconfig\\components\\OHS"
+components ||= []
+components.each do |compName|
+file_path = "#{domain_ohs_path}\\#{compName}\\httpd.conf"
+conf = conf_reader(file_path)
+([file_path] + conf.conf_file_paths).each do |cfile_path|
+describe file(cfile_path) do
+its('content') {should match /^Timeout[\s]+([0-2]?[0-9]|30)\b/}
+end
+end
+end
+end
+end
+
+
+===================
+
+
+domain_components = attribute('domain_components',
+	default: {"base_domain": [ "ohs1" ]},
+	description: 'An identification for the user')
+	
+	domains_home = attribute('domains_home',
+	default: "C:\\Oracle\\Middleware\\Oracle_Home\\user_projects\\domains",
+	description: 'Path of domains')
+	
+	product_home = attribute('product_home',
+	default: 'C:/Oracle/Middleware/Oracle_Home/ohs',description: 'Product home for ohs')
+	
+	stig_control "OH12-1X-000197" do
+	
+	domain_components.each do |domain, components|
+	components.each do |component|
+	base_path = "#{domains_home}/#{domain}/config/fmwconfig/components/OHS/#{component}"
+	base_path.gsub!(/\\+/, '/')
+	file_path = "#{base_path}/httpd.conf"
+	
+	conf_file_paths = conf_reader(file_path).conf_file_paths
+	ora_instance_path = "#{domains_home}\\#{domain}".gsub(/\\+/,'/')
+	
+	conf_file_paths.each do |cfile_path|
+	lines = file(cfile_path).content.lines
+	
+	match_data = lines.grep(/^[\s]*<Directory[\s]+\"(.*)\"[\s]*>[\s]*$/)
+	if match_data
+	match_data.each do |dir|
+	dir_path = /^[\s]*<Directory[\s]+\"(.*)\"[\s]*>[\s]*/.match(dir)[1]
+	if dir_path
+	dir_path.gsub!(/\$\{ORACLE_INSTANCE\}/,ora_instance_path)
+	dir_path.gsub!(/\$\{PRODUCT_HOME\}/, product_home)
+	dir_path.gsub!(/\$\{COMPONENT_TYPE\}/,'OHS')
+	dir_path.gsub!(/\$\{COMPONENT_NAME\}/,component)
+	
+	
+	describe file("#{dir_path}/.htaccess") do
+	it { should_not exist}
+	end
+	else
+	describe "#{dir_path}/#{cfile_path}" do
+	it "does not have <Directory> with values"
+	end
+	end
+	end
+	end
+	end
+	
+	end
+	end
+	end 

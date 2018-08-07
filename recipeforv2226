@@ -1,0 +1,39 @@
+## Check ##
+#
+# 1. Open the IIS Manager.
+# 2. Click the site name under review.
+# 3. Click Edit Permissions on the Actions Pane.
+# 4. Click the Sharing tab.
+# 5. If there are any anonymous shares under Network File and Folder sharing,
+# this is a finding.
+#
+#
+## Fix ##
+#
+# 1. Open the IIS Manager.
+# 2. Click the site name under review.
+# 3. Click Edit Permissions on the Actions Pane.
+# 4. Select the Sharing button.
+# 5. Click Share and then click stop sharing.
+#
+######
+
+
+site_names = attribute('website_names', default: [], description: 'List of names of the Websites for validation')
+stig_control "WG210 IIS7" do
+share_script = 'get-WmiObject -class Win32_Share | Select -ExpandProperty Path'
+shared_folders = powershell(share_script).stdout.to_s.strip.split("\n").map(&:strip)
+websites = powershell('Get-Website | Select -ExpandProperty Name').stdout.to_s.strip.split("\n").map(&:strip)
+site_names.each do |site_name|
+describe "Web content directories must not be anonymously shared" do
+subject do
+skip unless websites.include? site_name
+script = "[System.Environment]::ExpandEnvironmentVariables((Get-Website | where name -eq '#{site_name}').PhysicalPath)"
+site_folder = powershell(script).stdout.to_s.strip
+end
+it "SITE: '#{site_name}' site folder should not be in shared list" do
+expect(shared_folders).not_to include subject
+end
+end
+end
+end

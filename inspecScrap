@@ -1,0 +1,92 @@
+require 'inspec/dsl'
+require 'inspec/objects/attribute'
+
+# Inspec resource that defines a included files and node positions in apache.conf
+class Conf < Inspec.resource(1)
+attr_reader :conf_file_paths, :domains_home, :domain_components
+#attr_writer :conf_file_paths
+name 'conf_reader'
+
+desc '
+Represents a Helper to read the included files and searches xml like node
+'
+
+def initialize(file_path='')
+
+@conf_file_paths = []
+file = inspec.backend.file(file_path)
+
+return unless file.exist?
+@conf_file_paths = [file_path]
+file_content = inspec.backend.file(file_path).content.lines
+base_path = file_path.split('/')[0..-2].join('/')
+
+conf_files = file_content.grep(/^[\s]*include[\s]+"/)
+
+if conf_files.any?
+conf_file_names = conf_files.map { |f| f.match(/^[\s]*include[\s]+"(.*)".*/i).captures.first }
+conf_file_names.each do |file_name|
+cfile_path = "#{base_path}/#{file_name}"
+#check if files are included using wild char like include "moduleconf/*.conf"
+if file_name.include?('/*.')
+path = cfile_path.gsub(/\\/,'/')
+files_out = inspec.powershell("dir #{path} | Select Name").stdout.strip.split("\n")
+unless files_out.empty?
+files_out.shift(2) #remove Name and ----- elements
+files_out.each {|f| @conf_file_paths.push cfile_path.gsub(/\*\..*$/, f)}
+end
+else
+@conf_file_paths.push cfile_path
+end
+end
+end
+@conf_file_paths
+end
+
+def search_files(node_name, node_attr=nil, inner_node_name=nil, inner_node_attr=nil)
+file_positions = {}
+
+conf_file_paths.each do |file_path|
+cfile = inspec.backend.file(file_path)
+next unless cfile.exist?
+cfile = cfile.content.lines
+if inner_node_name
+next unless cfile && cfile.grep(/^[\s]*<#{node_name}[\s]*#{node_attr}/).any? &&
+cfile.grep(/^[\s]*<#{inner_node_name}[\s]*#{inner_node_attr}/)
+else
+next unless cfile && cfile.grep(/^[\s]*<#{node_name}[\s]*#{node_attr}/).any?
+end
+
+#Find the starting and ending position of inner node
+start_index, end_index, outer_start = -1, -1, -1
+
+cfile && cfile.each_with_index do |line, index|
+if inner_node_name
+outer_start = index if line =~ /^[\s]*<#{node_name}[\s]*#{node_attr}/
+if line =~ /^[\s]*<#{inner_node_name}[\s]*#{inner_node_attr}/ && outer_start >=0 && index > outer_start
+start_index = index
+end
+if line =~ /^[\s]*<\/#{inner_node_name}/ && start_index >= 0 && index > start_index
+end_index = index
+break
+end
+else
+if line =~ /^[\s]*<#{node_name}[\s]*#{node_attr}/
+start_index = index
+end
+if line =~ /^[\s]*<\/#{node_name}/ && start_index >= 0 && index > start_index
+end_index = index
+break
+end
+end
+end
+
+file_positions[file_path] = [start_index, end_index] if start_index >=0 && end_index > 0
+end
+file_positions
+
+end
+
+end
+
+

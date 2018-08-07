@@ -1,0 +1,129 @@
+## Discussion ##
+	#
+	# The registry is integral to the function, security, and stability of the
+	# Windows system. Some processes may require anonymous access to the registry.
+	# This must be limited to properly protect the system.
+	#
+	#
+	## Check ##
+	#
+	# Run "Regedit".
+	# Navigate to the following registry key:
+	# HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\SecurePipeServers\winreg\
+	#
+	# If the key does not exist, this is a finding.
+	#
+	# Right-click on "winreg" and select "Permissions…".
+	# Select "Advanced".
+	#
+	# If the permissions are not as restrictive as the defaults listed below, this
+	# is a finding.
+	#
+	#
+	# The following are the same for each permission listed:
+	# Type - Allow
+	# Inherited from - None
+	#
+	# Columns: Principal - Access - Applies to
+	# Administrators - Full Control - This key and subkeys
+	# Backup Operators - Read - This key only
+	# LOCAL SERVICE - Read - This key and subkeys
+	#
+	## Fix ##
+	#
+	# Maintain permissions at least as restrictive as the defaults listed below for
+	# the "winreg" registry key. It is recommended to not change the permissions
+	# from the defaults.
+	#
+	#
+	# HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\SecurePipeServers\winreg\
+	#
+	# The following are the same for each permission listed:
+	# Type - Allow
+	# Inherited from - None
+	#
+	# Columns: Principal - Access - Applies to
+	# Administrators - Full Control - This key and subkeys
+	# Backup Operators - Read - This key only
+	# LOCAL SERVICE - Read - This key and subkeys
+	#
+	######
+	Chef::Log.info 'Remediate: WN12-RG-000004: Anonymous access to the registry must be restricted.'
+	
+	powershell_script "WN12-RG-000004 - Anonymous access to the registry must be restricted." do
+	code <<-EOF
+	$reg_key = "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurePipeServers\\winreg"
+	$reg_key_acl = (Get-Acl $reg_key)
+	
+	$default_groups = @()
+	
+	$default_groups += (@{
+	IdentityReference="BUILTIN\\Administrators";
+	RegistryRights="FullControl";
+	AccessControlType="Allow";
+	InheritanceFlags="ContainerInherit";
+	PropagationFlags="None";
+	})
+	
+	$default_groups += (@{
+	IdentityReference="BUILTIN\\Backup Operators";
+	RegistryRights="ReadKey";
+	AccessControlType="Allow";
+	InheritanceFlags="None";
+	PropagationFlags="None";
+	})
+	
+	$default_groups += (@{
+	IdentityReference="NT AUTHORITY\\LOCAL SERVICE";
+	RegistryRights="ReadKey";
+	AccessControlType="Allow";
+	InheritanceFlags="ContainerInherit";
+	PropagationFlags="None";
+	})
+	
+	$allowed_rights = @("ChangePermissions", "CreateLink", "CreateSubKey", "Delete", "EnumerateSubKeys", "ExecuteKey", "FullControl", "Notify", "QueryValues", "ReadKey", "ReadPermissions", "SetValue", "TakeOwnership", "WriteKey")
+	$existing_principals_acl = $reg_key_acl.Access | ForEach-Object { $_ } | Where-Object { ($allowed_rights -contains $_.RegistryRights) }
+	
+	foreach($existing_principal_acl in $existing_principals_acl) {
+	$principal = $existing_principal_acl.IdentityReference.ToString()
+	$existing_access = $existing_principal_acl.RegistryRights.ToString()
+	Write-Host "Principal = " $principal
+	Write-Host "Access = " $existing_access
+	
+	$default_group = $default_groups | Where-Object { $_.IdentityReference -eq $principal }
+	
+	if ($default_group -ne $null) {
+	# Principal exists in default_groups, check access
+	Write-Host "Principal: " $principal ", found in default_groups, permissions:" $default_group.RegistryRights
+	if (($existing_principal_acl.RegistryRights.ToString() -ne $default_group.RegistryRights) -or
+	($existing_principal_acl.AccessControlType.ToString() -ne $default_group.AccessControlType) -or
+	($existing_principal_acl.InheritanceFlags.ToString() -ne $default_group.InheritanceFlags) -or
+	($existing_principal_acl.PropagationFlags.ToString() -ne $default_group.PropagationFlags)) {
+	
+	# Default permissions didn't match, update the permissions
+	$accessRule = New-Object System.Security.AccessControl.RegistryAccessRule($principal, $default_group.RegistryRights, $default_group.InheritanceFlags, $default_group.PropagationFlags, $default_group.AccessControlType)
+	$reg_key_acl.SetAccessRule($accessRule)
+	$reg_key_acl | Set-Acl $reg_key
+	Write-Host "Permissions updated for = " $principal
+	}
+	} else {
+	# Principal doesn't exist in default_groups, so remove it
+	Write-Host "Principal: " $principal ", doesn't exist in default_groups, removing access"
+	$reg_key_acl.RemoveAccessRule($existing_principal_acl)
+	$reg_key_acl | Set-Acl $reg_key
+	Write-Host "Permissions deleted for = " $principal
+	}
+	}
+	EOF
+	
+	not_if <<-EOF
+	$reg_key = "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurePipeServers\\winreg"
+	$reg_key_acl = (Get-Acl $reg_key)
+	$allowed_rights = @("ChangePermissions", "CreateLink", "CreateSubKey", "Delete", "EnumerateSubKeys", "ExecuteKey", "FullControl", "Notify", "QueryValues", "ReadKey", "ReadPermissions", "SetValue", "TakeOwnership", "WriteKey")
+	$total = ($reg_key_acl | Select-Object -ExpandProperty Access | Where-Object {($allowed_rights -contains $_.RegistryRights)}).Count
+	$admin = ($reg_key_acl | Select-Object -ExpandProperty Access | Where-Object { ($_.Identityreference -eq 'BUILTIN\\Administrators') -and ($_.RegistryRights -eq 'FullControl') -and ($_.AccessControlType -eq 'Allow') -and ($_.InheritanceFlags -eq 'ContainerInherit') -and ($_.PropagationFlags -eq 'None')}).Count
+	$backupoperators = ($reg_key_acl | Select-Object -ExpandProperty Access | Where-Object { ($_.Identityreference -eq 'BUILTIN\\Backup Operators') -and ($_.RegistryRights -eq 'ReadKey') -and ($_.AccessControlType -eq 'Allow') -and ($_.InheritanceFlags -eq 'None') -and ($_.PropagationFlags -eq 'None')}).Count
+	$localservice = ($reg_key_acl | Select-Object -ExpandProperty Access | Where-Object { ($_.Identityreference -eq 'NT AUTHORITY\\LOCAL SERVICE') -and ($_.RegistryRights -eq 'ReadKey') -and ($_.AccessControlType -eq 'Allow') -and ($_.InheritanceFlags -eq 'ContainerInherit') -and ($_.PropagationFlags -eq 'None')}).Count
+	(($total -eq 3) -and ($admin -eq 1) -and ($backupoperators -eq 1) -and ($localservice -eq 1))
+	EOF
+	end 

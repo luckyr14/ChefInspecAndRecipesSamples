@@ -1,0 +1,169 @@
+# STIG ID:  SQL2-00-015355
+# Rule ID:  SV-83773r1_rule
+# Vuln ID:  V-69169
+# Severity: CAT II
+# Related:
+# - CCI-002717
+# - CCI-002718
+#
+## Discussion ##
+#
+# When dealing with change control issues, it should be noted, any changes to
+# the hardware, software, and/or firmware components of applications and tools
+# related to SQL Server can potentially have significant effects on the overall
+# security of the system. Only qualified and authorized individuals shall be
+# allowed to obtain access to components related to SQL Server for purposes of
+# initiating changes, including upgrades and modifications.
+#
+#
+# Unmanaged changes that occur to the software libraries or configuration can
+# lead to unauthorized or compromised installations.
+#
+#
+# Of particular note in this context is that any software installed for auditing
+# and/or audit file management must be protected and audited.
+#
+#
+## Check ##
+#
+# Obtain the SQL Server software directory location: from a command prompt, open
+# the registry editor by typing regedit.exe and pressing [ENTER]. Navigate to
+# the following registry location:
+#
+# HKEY_LOCAL_MACHINE
+# >> SOFTWARE
+# >> Microsoft
+# >> Microsoft SQL Server
+# >> [INSTANCE NAME]
+# >> Setup
+# >> SQLBinRoot
+#
+# Determine the location of separate but related softare, such as audit file
+# management tools.
+#
+#
+# Verify that files and folders that are part of, or related to, the SQL Server
+# 2012 installation have auditing enabled. Right-click on the file/folder, click
+# Properties. On the Security tab, click Advanced. On the Auditing tab, verify
+#
+# that the following is set up on at least one audit:
+# Type: All
+# Principal: Everyone
+# Access: Modify
+# Applies to: This Folder, subfolder, and files [where applicable]
+#
+# If the required audit settings are not configured, there is a risk that
+# unauthorized changes to the software will go undetected, and this is a
+# finding.
+#
+#
+## Fix ##
+#
+# Include locations of all files, libraries, scripts, and executables that are
+# part of, or related to, the SQL Server 2012 installation in the documentation.
+#
+#
+# Ensure that files and folders that are part of, or related to, the SQL Server
+# 2012 installation have auditing enabled. Right-click on the file/folder, click
+# Properties. On the Security tab, click Advanced. On the Auditing tab, use the
+# Add or Edit buttons and the dialogs that follow from them, to set up the
+# following on at least one audit:
+#
+# Type: All
+# Principal: Everyone
+# Access: Modify
+# Applies to: This Folder, subfolder, and files [where applicable]
+#
+######
+
+
+==================================Inspec=======================
+
+
+script = <<-EOH
+	$binpath = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL10_50.MSSQLSERVER\Setup" | % {$_.SQLBinRoot}
+$items = Get-ChildItem -Path $binpath
+foreach ($item in $items)
+{
+    $fname = $item.FullName
+    $acl = Get-Acl -Path $fname -Audit | ForEach-Object { $_.Audit}
+    if($acl -ne $null)
+    {
+        if($acl.IdentityReference -eq "Everyone" -and $acl.FileSystemRights -eq "modify")
+        {$val = "Sucess"}
+    }
+    else
+    {
+        $val = $null
+        break
+    }
+}
+Write-Host $val
+EOH
+
+describe powershell(script) do
+  its('stdout') { should eq "Sucess\r\n" }
+end
+
+
+attr.yml
+username: ['C:\inetpub\scripts\IISSamples']
+
+===============recipe powershell==============
+
+$SuccessAudit = New-Object System.Security.AccessControl.FileSystemAuditRule(
+    "Everyone",
+    "ReadData, ReadExtendedAttributes, ExecuteFile, ReadAttributes, Write, Delete, ReadPermissions",
+    "ContainerInherit, ObjectInherit",
+    "None",
+    "Success"
+)
+$FailureAudit = New-Object System.Security.AccessControl.FileSystemAuditRule(
+    "Everyone",
+    "ReadData, ReadExtendedAttributes, ExecuteFile, ReadAttributes, Write, Delete, ReadPermissions",
+    "ContainerInherit, ObjectInherit",
+    "None",
+    "Failure"
+)
+# You could put your Get-Content call here:
+$StartingDir = "C:\lakshman"
+foreach ($file in $(Get-ChildItem $StartingDir -recurse)) {
+    write-host "file :" $file.FullName
+    $Acl = Get-Acl $file.FullName -Audit   # -Audit gets the existing SAC
+    try{
+    $Acl.AddAuditRule($SuccessAudit)
+    $Acl.AddAuditRule($FailureAudit)
+    }
+    catch [System.Management.Automation.MethodInvocationException]
+    {}
+    $acl.SetOwner([System.Security.Principal.NTAccount] "Administrators")
+    $Acl | Set-Acl
+}
+
+
+=====================inspec==============
+
+$binpath = Get-ItemProperty -Path "HKLM:\\SOFTWARE\\Microsoft\\Microsoft SQL Server\\MSSQL10_50.MSSQLSERVER\\Setup" | % {$_.SQLBinRoot}
+$items = Get-ChildItem -Path $binpath
+foreach ($item in $items)
+{
+    $fname = $item.FullName
+    $acl = Get-Acl -Path $fname -Audit | ForEach-Object { $_.Audit}
+    if($acl -ne $null)
+    {
+        if($acl.IdentityReference -eq "Everyone" -and $acl.FileSystemRights -eq "modify" -and $acl.AuditFlags.ToString() -eq "Success, Failure" )
+        {$val = "Sucess"}
+    }
+    else
+    {
+        $val = $null
+        break
+    }
+}
+Write-Host $val
+EOH
+
+describe powershell(script) do
+  its('stdout') { should eq "Sucess\r\n" }
+end
+~    

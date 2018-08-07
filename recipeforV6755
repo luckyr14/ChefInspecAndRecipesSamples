@@ -1,0 +1,72 @@
+node['IIS_7.0_WEB_SITE_BENCHMARK']['website_names'].each do |site_name|
+powershell_script 'write' do
+code <<-EOH
+Set-WebConfigurationProperty -filter /system.webserver/ DirectoryBrowsing -Name Enable -Value False -PSPath "IIS:\\Sites\\#{site_name}"
+
+
+EOH
+
+not_if <<-EOH
+$website = "#{site_name}"
+$SiteNames = Get-Website | Select Name
+if($SiteNames.name -Contains($website))
+{
+$allow_char_val = Get-WebConfigurationProperty -filter /system.webserver/Directory Browsing -name Enable -PSPath \"IIS:\\Sites\\$website\"
+$allow_char_val.Value -eq $false
+}
+EOH
+end
+end
+===========================
+site_names = attribute('website_names', default: [], description: 'List of names of the Websites for validation')
+stig_control "WG210 IIS7" do
+websites = powershell('Get-Website | Select -ExpandProperty Name').stdout.to_s.strip.split("\n").map(&:strip)
+site_names.each do |site_name|
+describe "Web content directories must not be anonymously shared" do
+subject do
+skip unless websites.include? site_name
+script = "[System.Environment]::ExpandEnvironmentVariables((Get-Website | where name -eq '#{site_name}').PhysicalPath)"
+site_folder = powershell(script).stdout.to_s.strip
+end
+it "SITE: '#{site_name}' site folder should not be in shared list" do
+expect(shared_folders).not_to include subject
+end
+end
+end
+end
+
+========================================
+
+powershell_script 'disable directory browsing iis' do
+        wsite =<<-EOH
+        $site = Get-Website | Select -ExpandProperty Name
+        EOH
+
+        code <<-EOH
+        #{wsite}
+        foreach($i in $site)
+        {
+        $value = (Get-WebConfigurationProperty -filter /system.webServer/directoryBrowse -name enabled -PSPath "IIS:\Sites\\$i" | select -ExpandProperty Value | Out-String).Trim()
+            if($value -eq "True")
+            {
+                Set-WebConfigurationProperty -Filter "/system.webServer/directoryBrowse" -Name Enabled -Value False -PSPath "IIS:\Sites\\$i"
+            }
+        }
+        EOH
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

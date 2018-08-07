@@ -1,0 +1,38 @@
+Details
+Check Text ( C-65373r1_chk )
+1. cd $DOMAIN_HOME/config/fmwconfig/components/OHS
+
+2. find . -name .htaccess -print
+
+3. If any .htaccess files are found, this is a finding.
+
+==============
+
+
+domian_home = attribute("domains_home", description: "value of domains_home")
+domain_components = attribute("domain_components", description: "value of domain_components")
+stig_control "OH12-1X-000196" do
+domain_components.each do |domain_name, components|
+domain_ohs_path = "#{domian_home}\\#{domain_name}\\config\\fmwconfig\\components\\OHS"
+components ||= []
+components.each do |compName|
+file_path = "#{domain_ohs_path}\\#{compName}\\.htaccess"
+describe file(file_path) do
+it { should_not exist }
+end
+end
+end
+end
+end
+
+===================
+
+describe command('find / -name ll.txt') do
+   its(:stdout) { is_expected.to include 'll.txt'}
+end
+===============
+command('find /usr/lib -type f').stdout.split.each do |fname|
+describe file(fname) do
+its('owner') { should cmp 'root' }
+end
+end

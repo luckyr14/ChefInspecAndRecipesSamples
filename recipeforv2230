@@ -1,0 +1,44 @@
+## Check ##
+#
+# This check is limited to CGI/interactive content and not static HTML.
+#
+# Search the IIS Root and Site Directories for the following files: *.bak,
+# *.old, *.temp, *.tmp, *.backup, or ‘copy of...’.
+#
+#
+# If files with these extensions are found, this is a finding.
+#
+## Fix ##
+#
+# Remove the backup files from the production web site.
+#
+######
+Chef::Log.info 'Remediate: WG420 IIS7: WG420'
+# FIXME: implement WG420 IIS7 below
+websites= powershell_out!('Get-Website | Select -ExpandProperty Name').stdout.strip.split("\r\n")
+node [cookbook_name] ['website_names'].each do |site_name|
+website_path_script = <<-EOH
+$site_folder = get-website | where {$_.Name -eq \"#{site_name}\"} | select -expandproperty PhysicalPath
+[system.environment]::ExpandEnvironmentVariables $site_folder
+EOH
+website_path = powershell_out!(website_path_script).stdout.strip.split("\r\n")
+powershell_script 'Remove backup files in site directories' do
+code <<-EOH
+remove-item -path "#{website_path}\\*" -include *.bak,*.old,*.temp,*.tmp,*.backup,"copy of*"
+EOH
+not_if do
+websites.include? site_name and
+begin
+powershell_out!("Get-Childitem -path #{website_path}\\* -include *.bak,*.old,*.temp,*.tmp,*.backup,'copy of*'").stdout.to_s.empty?
+end
+end
+end
+end
+powershell_script 'Remove backup files in IIS root' do
+code <<-EOH
+remove-item -path C:\\inetpub\\wwwroot\\* -include *.bak,*.old,*.temp,*.tmp,*.backup,"copy of*"
+EOH
+not_if do
+iisroot= powershell_out!('Get-Childitem -path C:\\inetpub\\wwwroot\\* -include *.bak,*.old,*.temp,*.tmp,*.backup,"copy of*"').stdout.to_s.empty?
+end
+end

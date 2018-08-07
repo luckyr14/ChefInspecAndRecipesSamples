@@ -1,0 +1,36 @@
+domain_components = attribute('domain_components',
+	default: {"base_domain": [ "ohs1" ]},
+	description: 'An identification for the user')
+	
+	domains_home = attribute('domains_home',
+	default: "C:\\Oracle\\Middleware\\Oracle_Home\\user_projects\\domains",
+	description: 'Path of domains')
+	
+	ssl_ca_revocation_file_path = attribute('ssl_ca_revocation_file_path', description: 'file path of ssl_ca_revocation_file_path')
+	
+	stig_control "OH12-1X-000249" do
+	
+	domain_components.each do |domain, components|
+	components.each do |component|
+	httpd_path = "#{domains_home}/#{domain}/config/fmwconfig/components/OHS/#{component}/httpd.conf"
+	
+	conf = conf_reader(httpd_path)
+	file_positions = conf.search_files('VirtualHost', '' ,'IfModule', 'ossl_module')
+	file_positions.each do |file_path, positions|
+	
+	describe file(file_path) do
+	it "should have ssl_ca_revocation_file_path" do
+	file(file_path).content.lines[positions[0]..positions[1]].grep(/^[\s]*SSLCARevocationFile[\s]*#{ssl_ca_revocation_file_path}/).any?
+	end
+	
+	it "should have valid SSLCRLCheck" do
+	file(file_path).content.lines[positions[0]..positions[1]].grep(/^[\s]*SSLCRLCheck[\s]*On/).any?
+	end
+	
+	end
+	
+	end
+	
+	end
+	end
+	end

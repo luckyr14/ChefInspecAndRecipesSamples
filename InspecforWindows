@@ -1,0 +1,86 @@
+# Author: Christoph Hartmann
+# Target OS: Windows 2012 R2
+
+# Check that IIS is installed via Windows Features
+describe windows_feature('Webserver') do
+  it { should be_installed }
+end
+
+# Ensure IIS Service is running
+describe service('W3SVC') do
+  it { should be_installed }
+  it { should be_running }
+end
+
+# Verify the `Default Web Site`
+describe iis_site('Default Web Site') do
+  it { should exist }
+  it { should be_running }
+  it { should have_app_pool('DefaultAppPool') }
+  its('app_pool') { should eq 'DefaultAppPool' }
+  it { should have_binding('http *:80:') }
+  its('bindings') { should include 'http *:80:' }
+  it { should have_path('%SystemDrive%\\inetpub\\wwwroot') }
+  its('path') { should eq '%SystemDrive%\\inetpub\\wwwroot' }
+end
+
+# Ensure the WebServer is running on port 80
+describe port(80) do
+  it { should be_listening }
+end
+
+
+==============
+
+
+InSpec also supports running Powershell and VBScript. This allows you to re-use existing scripts inside InSpec. powershell and vbscript resources provide the required capabilities to embed scripts in InSpec.
+
+script = <<-EOH
+  Write-Output 'hello'
+EOH
+
+describe powershell(script) do
+  its('stdout') { should eq "hello\r\n" }
+  its('stderr') { should eq '' }
+end
+
+script = <<-EOH
+  WScript.Echo "hello"
+EOH
+
+describe vbscript(script) do
+  its('stdout') { should eq "hello\r\n" }
+end
+
+
+==================
+
+In addition to operating system checks, we can test IIS configurations with InSpec as well. The following example demonstrates tests for an out-of-the-box IIS server.
+
+
+describe windows_feature('Webserver') do
+  it { should be_installed }
+end
+
+# Ensure IIS Service is running
+describe service('W3SVC') do
+  it { should be_installed }
+  it { should be_running }
+end
+
+# Verify the `Default Web Site`
+describe iis_site('Default Web Site') do
+  it { should exist }
+  it { should be_running }
+  it { should have_app_pool('DefaultAppPool') }
+  its('app_pool') { should eq 'DefaultAppPool' }
+  it { should have_binding('http *:80:') }
+  its('bindings') { should include 'http *:80:' }
+  it { should have_path('%SystemDrive%\\inetpub\\wwwroot') }
+  its('path') { should eq '%SystemDrive%\\inetpub\\wwwroot' }
+end
+
+# Ensure the WebServer is running on port 80
+describe port(80) do
+  it { should be_listening }
+end

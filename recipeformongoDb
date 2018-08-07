@@ -1,0 +1,49 @@
+use configuration manager tool like Chef for docker deployments and management
+
+
+
+knife cookbook download docker
+
+
+docker_service 'default' do
+        action [:create, :start]
+end
+ 
+# Create docker image, if image not found locally
+docker_image 'neerjaj2/mongodb-docker' do
+        tag 'v0.1.0'
+        source '/home/ubuntu/chef-repo/cookbooks/docker-mongodb/files/default/Dockerfile'
+        action :build_if_missing
+end
+ 
+# Below code can be used to pull docker image from docker hub
+"docker_image 'neerjaj2/mongodb' do
+        action :pull
+end"
+ 
+# Launch docker container using above mentioned docker image
+docker_container 'launch' do
+        repo 'neerjaj2/mongodb-docker'
+        tag 'v0.1.0'
+        hostname 'mongo1'
+        domain_name 'ttnd.com'
+        publish_all_ports
+        command '--replSet ttnd --noprealloc --smallfiles'
+end
+
+
+
+Note: You can either pull docker image from docker hub or create a custom image on every. In the above example, we are creating a new image using chef-repo/cookbooks/docker-Mongodb/files/default/Dockerfile to customize every run.
+
+        Contents of Dockerfile are:
+
+FROM ubuntu:latest
+RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 7F0CEB10
+RUN echo 'deb http://downloads-distro.mongodb.org/repo/ubuntu-upstart dist 10gen' | tee /etc/apt/sources.list.d/10gen.list
+RUN apt-get update
+RUN apt-get install -y mongodb-10gen=2.2.3
+RUN mkdir -p /data/db
+EXPOSE 27017
+ENTRYPOINT ["usr/bin/mongod"]
+
+Also add dependency in chef-repo/cookbooks/docker-mongodb/metadata.rb, as shown below:

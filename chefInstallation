@@ -1,0 +1,45 @@
+Chef WorkStation
+ 
+wget https://packages.chef.io/files/stable/chefdk/2.5.3/ubuntu/16.04/chefdk_2.5.3-1_amd64.deb
+
+sudo apt update
+
+sudo apt install bum
+
+dpkg -i chefdk_2.5.3-1_amd64.deb
+
+
+WorkStation Installed Now Download Starter kit from the Chef Server Cloud in zip format
+
+apt install unzip
+
+unzip chef-starter.zip
+
+mv starter /root/chef-repo/cookbooks
+
+cd chef-repo/
+
+cd /home/ubuntu/chef-repo/cookbooks/
+
+mv starter /root/chef-repo/cookbooks
+
+
+
+Directly Add Nodes to ChefServer from Workstation terminal by using below commands
+
+cd chef-repo/
+
+knife bootstrap (node private ip) --ssh-user ubuntu --sudo --identity-file LakshmanSinghBanafar.pem --node-name (EC2NodeName)
+
+knife client list
+
+knife bootstrap 172.31.11.183 --ssh-user root --ssh-password 123 --node-name chefNode
+
+(For Windows)
+knife bootstrap windows winrm 18.220.126.170 --winrm-user Administrator --winrm-password '9jvK.skrSrS' --node-name windowsIIS 
+
+
+
+
+
+Links:- https://www.slashroot.in/how-setup-and-configure-chef-workstation

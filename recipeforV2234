@@ -1,0 +1,66 @@
+## Check ##
+1. From a command prompt, type "net share" and press Enter to provide a list
+of available shares (including printers).
+2. To display the permissions assigned to the shares type "net share" followed
+by the share name found in the previous step.
+If any private assets are assigned permissions to the share, this is a
+finding. If any printers are shared, this is a finding.
+
+## Fix ##
+# Configure the public web server to not have a trusted relationship with any
+system resource that is also not accessible to the public. Web content is not
+to be shared via Microsoft shares or NFS mounts.
+#
+######
+
+
+
+
+powershell_script 'add user in iis' do
+        code <<-EOH
+        $shrnames = gwmi Win32_Share |Where {$_.name -Like "*"}  | Select Name
+$cnt = $shrnames.Count
+$testArray = [System.Collections.ArrayList]@()
+$testArray = $shrnames -split '\r?\n'
+$Victim = @("@{Name=C$}","@{Name=IPC$}","@{Name=print$}","@{Name=ADMIN$}")
+foreach($i in $testArray)
+{
+    if($Victim.Contains($i))
+    {
+        continue
+    }
+    else
+    {
+        $aa = $i -replace ".*=" -replace "}.*"
+        $value = (Get-WmiObject -Class Win32_Share -Filter "Name='$aa'").InvokeMethod("Delete",$null)
+    }
+}
+        EOH
+        end
+======================
+
+powershell_script 'add user in iis' do
+        shares =<<-EOH
+        $shrnames = gwmi Win32_Share |Where {$_.name -Like "*"} | Select -ExpandProperty Name
+        $default_shares = @("C$","IPC$")
+        EOH
+
+        code <<-EOH
+        #{shares}
+        foreach($i in $shrnames)
+        {
+                if(!$default_shares.Contains($i))
+                {
+                        (Get-WmiObject -Class Win32_Share -Filter "Name='$i'").InvokeMethod("Delete",$null)
+                }
+        }
+        EOH
+        only_if <<-EOH
+        #{shares}
+        ($shrnames | where {$default_shares -notcontains $_}).Count -ne 0
+        EOH
+        end
+=========================
+
+
+

@@ -1,0 +1,89 @@
+#### SRG-APP-000164-DB-000401 ####
+#
+# If SQL Server authentication, using passwords, is employed, SQL Server must enforce the DoD standards for password complexity.
+#
+# STIG ID:  SQL2-00-038900
+# Vuln ID:  V-72413
+## Check ##
+#
+# Run the statement:
+# SELECT
+#     name
+# FROM
+#     sys.sql_logins
+# WHERE
+#     type_desc = 'SQL_LOGIN'
+#     AND is_disabled = 0
+#     AND is_policy_checked = 0 ;
+#
+# If no account names are listed, this is not a finding.
+#
+# For each account name listed, determine whether it is documented as requiring
+# exemption from the standard password complexity rules.  If it is not, this is
+# a finding.
+#
+#
+## Fix ##
+#
+# For each SQL Server Login identified in the Check as out of compliance:
+# In SQL Server Management Studio Object Explorer, navigate to <SQL Server
+# instance name> >> Security >> Logins >> <login name>.  Right-click, select
+# Properties.  Select the check box Enforce Password Policy.  Click OK.
+#
+#
+# Alternatively, for each identified Login, run the statement:
+# ALTER LOGIN <login name> CHECK_POLICY = ON;
+#
+######
+
+
+
+sql = mssql_session
+
+describe sql.query("SELECT name FROM sys.sql_logins WHERE type_desc = 'SQL_LOGIN' AND is_disabled = 0 AND is_policy_checked = 0;").rows do
+     its('count') { should eq 0 }
+end
+
+
+====================
+
+
+Clear-Host
+$query = sqlcmd -Q "SELECT name FROM sys.sql_logins WHERE type_desc = 'SQL_LOGIN' AND is_disabled = 0 AND is_policy_checked = 0 ;"
+for ($i = 2; $i -lt $query.Count ; $i++) 
+{
+    $var = $query[$i]
+    if($var -notcontains '^()' -and $var -ne $null)
+    {
+        Write-Host $var
+        sqlcmd -Q "ALTER LOGIN [$var] WITH CHECK_POLICY=ON ;"
+    }
+}
+
+
+====================
+
+powershell_script 'check login user password policy' do
+        loginname =<<-EOH
+        $query = sqlcmd -Q "SELECT name FROM sys.sql_logins WHERE type_desc = 'SQL_LOGIN' AND is_disabled = 0 AND is_policy_checked = 0 ;"
+        EOH
+
+        code <<-EOH
+        #{loginname}
+        for ($i = 2; $i -lt $query.Count ; $i++) 
+        {
+                $var = $query[$i]
+                if($var -notcontains '^()' -and $var -ne $null)
+                 {
+                        Write-Host $var
+                        sqlcmd -Q "ALTER LOGIN [$var] WITH CHECK_POLICY=ON ;"
+                }
+        }
+        EOH
+        only_if <<-EOH
+        #{loginname} 
+        ($shrnames | where {$default_shares -notcontains $_}).Count -ne 0
+        EOH
+        end
+
+

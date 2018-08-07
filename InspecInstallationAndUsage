@@ -1,0 +1,35 @@
+apt-get -y install ruby ruby-dev gcc make
+gem install inspec
+
+
+inspec help
+inspec detect
+mkdir inspecwork
+cd inspecwork/
+git clone https://github.com/learn-chef/auditd.git
+cat auditd/controls/example.rb 
+inspec exec inspecwork/auditd 
+cat inspecwork/auditd/inspec.yml 
+mkdir inspecwork/checkfile
+cd inspecwork/auditd/
+
+
+For Updating >> chef gem update inspec
+
+
+inspec exec test.rb
+
+# run test on remote host on SSH
+inspec exec test.rb -t ssh://user@hostname -i /path/to/key
+
+# run test on remote windows host on WinRM
+inspec exec test.rb -t winrm://Administrator@windowshost --password 'your-password'
+
+# run test on docker container
+inspec exec test.rb -t docker://container_id
+
+inspec exec win3 --attrs win3/a.yml -t winrm://Administrator@18.220.126.170 --password '9jvK.skrSrS'
+
+
+
+https://www.inspec.io/docs/reference/cli/

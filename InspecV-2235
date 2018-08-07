@@ -1,0 +1,78 @@
+V-2235	
+
+Check Text ( C-38468r4_chk )
+1. Go to Start, Administrative Tools, and then Services.
+2. Right-click on service name World Wide Web Publishing Service, Select Properties, and then select the Log On tab.
+3. If “Local System account” is selected for the logon account, this is not a finding. If the “This account” option is selected, the username given is the web service account ID.
+4. Open a command prompt and enter Net User [service account ID], press Enter.
+5. Verify the values for Password last set and Password expires to ensure the password has been changed in the past year and will be required to change within the coming year.
+Fix Text (F-27578r3_fix)
+Configure the service account ID used to run the web-site to have its password changed at least annually, or use the local system account.
+
+
+
+script = <<-EOH
+
+$comd = (Get-WmiObject -Class Win32_Service | Where-Object {$_.Name -eq 'W3SVC'} | Format-Wide StartName | Out-String).Trim()
+$SpecChars = '!', '"', '£', '$', '%', '&', '^', '*', '(', ')', '@', '=', '+', '¬', '`', '\', '<', '>', '.', '?', '/', ':', ';', '#', '~', "'", '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', ' '
+$remspecchars = [string]::join('|', ($SpecChars | % {[regex]::escape($_)}))
+if($comd -cnotmatch "LocalSystem")
+{
+    $usrnm = $comd -replace $remspecchars, ""
+    $password_last_set = (net user $usrnm | find "Password last set") -replace 'Password last set','' | % {$_.trim()}
+    $password_last_set = [datetime]$password_last_set
+    $dead_line_date = $password_last_set.AddDays(365)
+    if($dead_line_date -lt $current_date )
+    {
+        Write-Host "Password Expired"
+    }
+    else
+    {
+        Write-Host "OK"
+    }
+}
+else 
+{
+	Write-Host "OK"
+}
+
+EOH
+
+describe powershell(script) do
+  its('stdout') { should eq "OK\r\n" }
+end
+
+
+=========================
+
+
+script = <<-EOH
+
+$comd = (Get-WmiObject -Class Win32_Service | Where-Object {$_.Name -eq 'W3SVC'} | Format-Wide StartName | Out-String).Trim()
+if($comd -cnotmatch "LocalSystem")
+{
+    $usrnm = $comd -replace '\.\\', ''
+    $password_last_set = (net user $usrnm | find "Password last set") -replace 'Password last set','' | % {$_.trim()}
+    $password_last_set = [datetime]$password_last_set
+    $dead_line_date = $password_last_set.AddDays(365)
+    $current_date = Get-Date
+    if($dead_line_date -lt $current_date )
+    {
+        Write-Host "Password Expired"
+    }
+    else
+    {
+        Write-Host "OK"
+    }
+}
+else
+{
+        Write-Host "OK"
+}
+
+EOH
+
+describe powershell(script) do
+  its('stdout') { should eq "OK\r\n" }
+end
+

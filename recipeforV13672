@@ -1,0 +1,79 @@
+	# Vuln ID: V-13672
+	## Discussion ##
+	#
+	# The Certificate Revocation List (CRL) is used for a number of reasons, for
+	# example, when an employee leaves, certificates expire, or if certificate keys
+	# become compromised and are reissued. Without the use of a certificate
+	# validation process, the server is vulnerable to accepting expired or revoked
+	# certificates. This could allow unauthorized individuals access to the web
+	# server. The CRL is a repository comprised of revoked certificate data, usually
+	# from many contributing CRL sources.
+	#
+	# Sites using an Online Certificate Status Protocol (OCSP) rather than CRL
+	# download to validate certificates will have obtained and installed an OCSP
+	# validation application.
+	#
+	#
+	## Check ##
+	#
+	# Verify Certificate Revocation List (CRL) validation is enabled on the server.
+	# Open a Command Prompt and enter the following command:
+	#
+	# netsh http show sslcert
+	#
+	# Note the value assigned to the Verify Client Certificate Revocation element.
+	# If the value of the Verify Client Certificate Revocation element is not
+	# enabled, this is a finding.
+	#
+	#
+	## Fix ##
+	#
+	# Using vendor documentation as guidance, reconfigure the web server to utilize
+	# certificate with an approved certificate validation process:
+	#
+	# netsh http add sslcert
+	#
+	# Alternatively, configure existing certificate to validate certifcate
+	# revocation:
+	#
+	#
+	# Open registry, locate
+	# HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\HTTP\Parameters\SslBindingInfo\0.0.0.0:443\DefaultSslCertCheckMode
+	#
+	# Modify the value to 0
+	# Restart server
+	#
+	######
+	
+	Chef::Log.info 'Remediate: WG145 IIS7: WG145'
+	
+	powershell_script 'add_sll_cert' do
+	code <<-EOH
+	netsh http delete sslcert ipport=#{node[cookbook_name]['ip_addr_port']}
+	netsh http add sslcert ipport=#{node[cookbook_name]['ip_addr_port']} certhash=#{node[cookbook_name]['cert_hash']}
+	EOH
+	end
+	
+	registry_key "HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\HTTP\\Parameters\\SslBindingInfo\\#{node[cookbook_name]['ip_addr_port']}\\" do
+	values [{
+	name: 'DefaultSslCertCheckMode',
+	type: :dword,
+	data: 0
+	}]
+	action :create
+	end 
+
+
+===============
+
+ 	# only these STIG ID(s) - but they can still be skipped using 'except_stig_ids'
+	default['IIS_7.0_WEB_SERVER_BENCHMARK']['only_stig_ids'] = []
+	
+	# Supplying one or more STIG ID(s) in this list will disable the STIG.
+	default['IIS_7.0_WEB_SERVER_BENCHMARK']['except_stig_ids'] =
+	[
+	]
+	
+	# Add DOD aproved certificate
+	default['IIS_7.0_WEB_SERVER_BENCHMARK']['ip_addr_port'] = '0.0.0.0:443'
+	default['IIS_7.0_WEB_SERVER_BENCHMARK']['cert_hash'] = '' 

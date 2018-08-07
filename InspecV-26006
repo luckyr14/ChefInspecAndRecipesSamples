@@ -1,0 +1,199 @@
+V-26006	
+Check Text ( C-32874r1_chk )
+1. Open the IIS Manager.
+2. Click the Server.
+3. Double-click the Authorization Rules icon.
+4. If any user other then Administrator is listed, this is a finding.
+
+Fix Text (F-29025r1_fix)
+1. Open the IIS Manager.
+2. Click the Server.
+3. Double-click the Authorization Rules icon.
+4. Remove all users other than Administrator.
+
+
+script = <<-EOH
+        $IISUser = Get-WebConfiguration -Filter system.webServer/security/authorization | Foreach{$_.GetCollection() | Foreach {$_.Attributes | select name, value } }
+        $count = $IISUser |select-string -Pattern "users"
+        $admin = $IISUser |select-string -Pattern "Administrator"
+        $count2 = $count.Matches.Count
+        if($admin -cmatch "Administrator")
+        {
+                if($count2 -gt 2)
+                {Write-Host "false"}
+                else
+                {Write-Host "true"}
+        }
+        else
+                {Write-Host "Administrator Not Found"}
+EOH
+
+describe powershell(script) do
+  its('stdout') { should eq "true\r\n" }
+  its('stdout') { should eq "Administrator Not Found\r\n" }
+end
+
+describe service('W3SVC') do
+    it { should be_installed }
+end
+
+
+==================
+
+script = <<-EOH
+$IISUser = Get-WebConfiguration -Filter system.webServer/security/authorization | Foreach{$_.GetCollection() | Foreach {$_.Attributes | select name, value } }
+$usrs = $IISUser | where {$_.Name -eq "users"} | select -ExpandProperty Value
+foreach($user in $usrs)
+{
+       if($user -eq "Administrator")
+       {
+       Write-Host "true"
+       break
+       }
+       else
+       {
+       Write-Host "Administrator Not Found"
+       }
+}        
+
+EOH
+
+describe powershell(script) do
+  its('stdout') { should eq "true\r\n" }x
+end
+
+
+===================
+
+
+$IISUser = Get-WebConfiguration -Filter system.webServer/security/authorization | Foreach{$_.GetCollection() | Foreach {$_.Attributes | select name, value } }
+$usrs = $IISUser | where {$_.Name -eq "users"} | select -ExpandProperty Value
+foreach($user in $usrs)
+{
+       if($user -eq "Administrator")
+       {
+       Write-Host "true"
+       break
+       }
+       else
+       {
+       Write-Host "Administrator Not Found"
+       }
+}
+=======
+
+
+
+
+script = <<-EOH
+
+$accessList = Get-WebConfiguration -Filter system.webServer/security/authorization | Foreach{$_.GetCollection()}
+
+$allowed_users = @()
+
+foreach ($elem in $accessList) {
+
+$accessTypeIndex = [array]::indexof($elem.attributes.Name, 'accessType')
+
+if($elem.attributes.Value[$accessTypeIndex] -eq 0) {
+
+$usersIndex = [array]::indexof($elem.attributes.Name, 'users')
+
+$allowed_users += $elem.attributes.Value[$usersIndex]
+
+}
+
+}
+
+$allowed_users
+
+EOH
+
+describe powershell(script) do
+
+it "should have only one user that is Administrator" do
+
+users = subject.stdout 
+
+expect(users).to contain_exactly ('Administrator' ||   
+
+end
+
+end
+
+end
+
+================================
+
+
+$IIS = Get-WebConfiguration -Filter system.webServer/security/authorization | Foreach {$_.GetCollection()}
+$allowed_users = @()
+foreach ($e in $IIS)
+{
+
+
+    $a = [array]::IndexOf($e.attributes.Name, 'accessType')
+    if($e.attributes.Value[$a] -eq 0)
+    {
+        $usr = [array]::indexof($e.attributes.Name, 'users')
+        $allowed_users += $e.attributes.Value[$usr]
+    }
+}
+foreach ($i in $IIS)
+{
+    $atvalue = [array]::IndexOf($i.attributes.Name, 'accessType')
+    if(($i.attributes.Value[$atvalue] -eq 0) -or ($i.attributes.Value[$atvalue] -eq 1))
+    {
+        $role = [array]::indexOf($i.attributes.Name, 'roles')
+        $find = $i.attributes.Value[$role]
+        if($find -match "[a-zA-Z]")
+        {
+            $allowed_users.Clear()
+            break
+        }
+    }
+}
+
+
+echo $allowed_users
+
+
+========================final Touch
+
+$IIS = Get-WebConfiguration -Filter system.webServer/security/authorization | Foreach {$_.GetCollection()}
+$allowed_users = @()
+foreach ($usrcheck in $IIS)
+{
+
+
+    $usrtype = [array]::IndexOf($usrcheck.attributes.Name, 'accessType')
+    if($e.attributes.Value[$usrtype] -eq 0)
+    {
+        $usr = [array]::indexof($usrcheck.attributes.Name, 'users')
+        $allowed_users += $usrcheck.attributes.Value[$usr]
+    }
+}
+foreach ($rolecheck in $IIS)
+{
+    $atvalue = [array]::IndexOf($rolecheck.attributes.Name, 'accessType')
+    if(($rolecheck.attributes.Value[$atvalue] -eq 0) -or ($rolecheck.attributes.Value[$atvalue] -eq 1))
+    {
+        $role = [array]::indexOf($rolecheck.attributes.Name, 'roles')
+        $rolename = $rolecheck.attributes.Value[$role]
+        if($rolename -match "[a-zA-Z]")
+        {
+            $Error_Found = [string]"This role should not be present $rolename"
+	    Throw $URL_Format_Error
+        }
+    }
+}
+
+
+echo $allowed_users
+
+
+
+
+
+
+

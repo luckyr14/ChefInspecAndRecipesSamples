@@ -1,0 +1,37 @@
+Description
+The Directory Browsing feature can be used to facilitate a directory traversal exploit. Directory browsing must be disabled.
+
+
+Check Text ( C-32785r1_chk )
+1. Open the IIS Manager.
+2. Click the site name under review.
+3. Click Directory browsing icon.
+4. In the Alerts Pane ensure Directory Browsing is disabled. If not, this is a finding.
+
+
+
+script = <<-EOH
+
+$site = Get-Website | Select -ExpandProperty Name
+        foreach($i in $site)
+        {
+        $value = (Get-WebConfigurationProperty -filter /system.webServer/directoryBrowse -name enabled -PSPath "IIS:\Sites\\$i" | select -ExpandProperty Value | Out-String).Trim()
+            if($value -eq "True")
+            {
+                Write-Host "NotOK"
+                break
+            }
+        }
+
+EOH
+
+describe powershell(script) do
+  its('stdout') { should eq '' }
+end
+
+
+
+
+
+
+

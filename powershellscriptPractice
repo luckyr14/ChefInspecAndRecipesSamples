@@ -1,0 +1,41 @@
+$IISUser = Get-WebConfiguration -Filter system.webServer/security/authorization | Foreach{$_.GetCollection() | Foreach {$_.Attributes | select name, value } } 
+$count = $IISUser |select-string -Pattern "users"
+$count2 = $count.Matches.Count
+echo $count
+#Get-WebConfiguration -filter /system.webServer/security/authorization -Location -pspath 'MACHINE/WEBROOT/APPHOST'| Foreach{$_.GetCollection() | Foreach {$_.Attributes | select users} }
+ 
+echo $count2
+
+if($count2 -gt 2)
+{Write-Host "false"}
+else
+{Write-Host "true"}
+
+
+
+=====
+$admin = $IISUser |select-string -Pattern "Administrator"
+
+if($admin -cmatch "Administrator")
+{
+if($count2 -gt 2)
+{Write-Host "false"}
+else
+{Write-Host "true"}
+}
+else 
+{Write-Host "Administrator Not Found"}
+
+====
+
+============================
+
+Get-NetFirewallPortFilter | ?{$_.LocalPort -eq 5985 } | Get-NetFirewallRule | ?{ $_.Direction -eq "Inbound" -and $_.Profile -eq "Public" -and $_.Action -eq "Allow"} | Set-NetFirewallRule -RemoteAddress "Any"
+Write-Host "hello lakshman"
+Import-Module "Hyper-V"
+Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Tools-All
+Get-VM -Name "WindowsServer2012R2" | select -ExpandProperty NetWorkAdapters | select IPAddresses
+$IISUser = Get-WebConfiguration -Filter system.webServer/security/authorization | Foreach{$_.GetCollection() | Foreach {$_.Attributes | select name, value } } > C:\data.txt
+$count = (get-content C:\data.txt | select-string -pattern "users").length
+echo $count
+

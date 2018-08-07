@@ -1,0 +1,43 @@
+Details
+Check Text ( C-38468r4_chk )
+1. Go to Start, Administrative Tools, and then Services.
+2. Right-click on service name World Wide Web Publishing Service, Select Properties, and then select the Log On tab.
+3. If “Local System account” is selected for the logon account, this is not a finding. If the “This account” option is selected, the username given is the web service account ID.
+4. Open a command prompt and enter Net User [service account ID], press Enter.
+5. Verify the values for Password last set and Password expires to ensure the password has been changed in the past year and will be required to change within the coming year.
+Fix Text (F-27578r3_fix)
+Configure the service account ID used to run the web-site to have its password changed at least annually, or use the local system account.
+
+
+
+
+
+Chef::Log.info "Remediate: WG060 IIS7: WG060"
+# FIXME: implement WG060 IIS7 below
+command = "(Get-WmiObject -Class Win32_Service | Where-Object {$_.Name -eq 'W3SVC'} | Format-Wide StartName | Format-Wide startname | Out-String).Trim()"
+username = Mixlib::ShellOut.new("#{node["kernel"]["os_info"]["windows_directory"]}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -command \"#{command}\"").run_command.stdout.gsub(/\r\n?/, "")
+powershell_script "WG060 IIS7: WG060: Set startname of W3SVC as defined in STIG" do
+code <<-EOH
+$password_last_set = (net user #{username} | find "Password last set") -replace 'Password last set','' | % {$_.trim()}
+$password_last_set = [datetime]$password_last_set
+$current_date=Get-Date
+$dead_line_date = $password_last_set.AddDays(365)
+if($dead_line_date -lt $current_date ){
+sc.exe config "W3SVC" obj= "LocalSystem"
+}
+EOH
+not_if { "#{username}" == "LocalSystem" }
+end
+
+
+============
+default['IIS_7.0_WEB_SERVER_BENCHMARK']['only_stig_ids'] = []
+	
+	# Supplying one or more STIG ID(s) in this list will disable the STIG.
+	default['IIS_7.0_WEB_SERVER_BENCHMARK']['except_stig_ids'] =
+	[
+	]
+	
+	# Add DOD aproved certificate
+	default['IIS_7.0_WEB_SERVER_BENCHMARK']['ip_addr_port'] = '0.0.0.0:443'
+	default['IIS_7.0_WEB_SERVER_BENCHMARK']['cert_hash'] = '' 

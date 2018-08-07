@@ -1,0 +1,24 @@
+Chef::Log.info 'Remediate: WN12-GE-000021: Unnecessary Services'
+	
+	allowed_services = convert_to_psarray node['Windows_2012_MS_STIG']['WN12-GE-000021']['allowed_services']
+	extra_services = convert_to_psarray node['Windows_2012_MS_STIG']['WN12-GE-000021']['extra_services']
+	
+	powershell_script 'WN12-GE-000021: Disable Unnecessary Services.' do
+	code <<-EOF
+	$allowed_services = #{allowed_services}
+	$extra_services = #{extra_services}
+	
+	if($extra_services -ne $null) { $allowed_services = $allowed_services + $extra_services }
+	
+	$non_allowed_services = Get-Service | ?{$allowed_services -notcontains $_.Name}
+	
+	foreach($service in $non_allowed_services) {
+	Write-Host "Name: " $service.DisplayName ", Status: " $service.Status
+	
+	if ($service.Status -ne 'Disabled') {
+	Write-Host "Disabling the service:" $service.Name
+	Set-Service $service.Name -StartupType Disabled
+	}
+	}
+	EOF
+	end 

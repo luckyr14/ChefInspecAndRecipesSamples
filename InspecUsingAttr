@@ -1,0 +1,21 @@
+websitenames = attribute('website_names', default: [], description: 'List of names of the Websites for validation')
+
+stig_control "WA000-WI6165" do
+  websitenames.each do |sites|
+    script = powershell("Import-Module WebAdministration; Get-WebConfigurationProperty -Filter \"/system.webServer/httpErrors\" -pspath \"MACHINE/WEBROOT/APPHOST/#{sites}\"-Name errormode")
+    describe script  do
+      its(:stdout) { should eq "DetailedLocalOnly\r\n" }
+    end
+  end
+end
+
+
+
+
+Attr.yml
+website_names : ['abc','aa']
+
+
+============Execute inspec code with attr ==============
+
+inspec exec win3 --attrs win3/a.yml -t winrm://Administrator@18.220.126.170 --password '9jvK.skrSrS'

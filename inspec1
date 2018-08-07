@@ -1,0 +1,60 @@
+File.open(filename) do |f|
+  f.any? do |line|
+    line.include?(word)
+  end
+end
+================
+
+aFile = File.new("input.txt", "r")
+if aFile
+   content = aFile.sysread(20)
+   puts content
+else
+   puts "Unable to open file!"
+end
+
+
+
+===========================
+
+
+def word_exists_in_file
+   f = File.open("your_file.txt") #opens the file for reading
+   f.each do line
+      print line
+      if line.match /your_word_to_match/
+         return true
+      end
+   end
+   false
+end
+
+=============
+
+domian_home = attribute("domains_home", description: "value of domains_home")
+domain_components = attribute("domain_components", description: "value of domain_components")
+stig_control "OH12-1X-000284" do
+domain_components.each do |domain_name, components|
+domain_ohs_path = "#{domian_home}\\#{domain_name}\\config\\fmwconfig\\components\\OHS"
+components ||= []
+components.each do |compName|
+file_path = "#{domain_ohs_path}\\#{compName}\\httpd.conf"
+conf = conf_reader(file_path)
+([file_path] + conf.conf_file_paths).each do |cfile_path|
+describe file(cfile_path) do
+its('AllowOverride') { should cmp 'None' }
+
+end
+end
+end
+end
+end
+
+
+
+====================
+its ('AllowOverride') { should cmp 'nil' }
+
+ its('content') { should match(%r{AllowOverride\s.*?nil}) }
+
+ its('content') { should match(%r{AllowOverride\s.*?nil\s.*?all\s.*?127.0.0.1\/32\s.*?md5}) }

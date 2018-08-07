@@ -1,0 +1,75 @@
+
+script = <<-EOH
+$attrdirectory = @()
+$site = Get-Website | Select -ExpandProperty Name
+foreach($sitename in $site)
+{
+    $paths = (Get-Website -Name $sitename).PhysicalPath
+    $dirInpath = Get-ChildItem -Path $paths | Select-Object -ExpandProperty Name
+    if(Test-Path 'HKLM:\SYSTEM\CurrentControlSet\Control\ContentIndex\Catalogs')
+    {
+        foreach($dirName in $attrdirectory)
+        {
+            if($dirInpath -ccontains $dirName)
+            {
+                $value = (Get-ChildItem -Path HKLM:\SYSTEM\CurrentControlSet\Control\ContentIndex\Catalogs\$sitename).GetValueNames()
+                $test = Test-Path $value
+                Write-Host $test
+            }
+        }
+    }
+}
+
+EOH
+
+describe powershell(script) do
+  its('stdout') { should eq "True\r\n" }
+end
+
+=============================================
+
+
+
+Given a key \SQL with two properties:
+
+I'd grab the "MSSQLSERVER" one with the following in-cases where I wasn't sure what the property name was going to be to use dot-notation:
+
+$regkey_property_name = 'MSSQLSERVER'
+$regkey = get-item -Path 'HKLM:\Software\Microsoft\Microsoft SQL Server\Instance Names\SQL'
+$regkey.GetValue($regkey_property_name)
+
+
+=============================
+
+
+script = <<-EOH
+$websitename = Get-Website | Select -ExpandProperty Name
+
+foreach($site in $websitename)
+{
+    $paths = (Get-Website -Name $site).PhysicalPath
+    break
+}
+foreach($sitename in $websitename)
+{
+    if(Test-Path 'HKLM:\SYSTEM\CurrentControlSet\Control\ContentIndex\Catalogs')
+    {
+        $indexedpath = (Get-ChildItem -Path HKLM:\SYSTEM\CurrentControlSet\Control\ContentIndex\Catalogs\$sitename).GetValueNames()
+        foreach($dirName in $indexedpath)
+        {
+            if(!$paths.Contains($dirName))
+            {
+                   Write-Host "Not Ok"
+            }
+        }
+    }
+}
+EOH
+
+describe powershell(script) do
+  its('stdout') { should_not eq '' }
+end
+
+
+Get-ChildItem -Path "HKLM:\SYSTEM\CurrentControlSet\Control\ContentIndex\Catalogs\test" |% {$_.Location}
+

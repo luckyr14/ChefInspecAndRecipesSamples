@@ -1,0 +1,25 @@
+coobooks/your-cookbook-name/attributes/defaults.rb
+
+default['your_cookbook_name']['iis_feature_required']  = ['Web-Server','Web-Static-Content','Web-Default-Doc','Web-Dir-Browsing','Web-Http-Errors','Web-Http-Redirect','Web-Asp-Net','Web-Net-Ext','Web-ASP','Web-CGI','Web-ISAPI-Ext','Web-ISAPI-Filter','Web-Http-Logging','Web-Request-Monitor','Web-Http-Tracing','Web-Custom-Logging','Web-Url-Auth','Web-Filtering','Web-Stat-Compression','Web-Mgmt-Console','Web-Scripting-Tools','Web-Mgmt-Service']
+
+
+node.your_cookbook_name.iis_feature_required.each do |feat|
+  powershell_script 'install-required-iis-features' do
+    code <<-EOH
+    $winfeat = '#{feat}'
+    Add-WindowsFeature -Name $winfeat
+    EOH
+    not_if <<-EOH
+    if ( ( Get-WindowsFeature -name $winfeat).Installed )
+    EOH
+  end
+end
+
+
+
+
+I hope this is mostly transparent to you. Two things to note:
+
+-I wasn’t able to use Ruby variable substitution directly in a PowerShell cmdlet, so you see a stylistic no-no: the assignment to a variable used in the cmdlet ($winfeat = '#{feat}'), and
+-Making PowerShell scripts idempotent is totally up to you. That’s what the not_if logic does. In this case, we call the Get-WindowsFeature cmdlet to test if the feature is installed, which then causes Chef to bypass installation.
+
